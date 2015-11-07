@@ -73,7 +73,7 @@ def init_P():
 
 def prop_P(P):
    new_P = 0
-   while not (3 < sec_to_day(new_P) < 4):
+   while not (1 < sec_to_day(new_P) < 6):
       new_P = (np.random.rand()-0.5) *0.5*day_to_sec(1) +P
    return new_P
 
@@ -249,7 +249,8 @@ def plot_fit(P, m2sinI, t0, chi2):
    ax.scatter(xfit,RV,color='green',marker='o',s=0.5,lw=1,alpha=1,label='MCMC fit')
    ax.errorbar(xdata,data[1],yerr=[data[2],data[2]],fmt='+',lw=1,c='red')
    ax.scatter(xdata,data[1],marker='o',facecolor='white',edgecolor='red',lw=0.6,s=20,label='data')
-   
+   ax.set_xlabel('Time (d)')
+   ax.set_ylabel('Radial velocity (cm/s)')
    
    '''
    ax.set_xlabel(r'$\lambda$ (\AA)')
@@ -290,7 +291,7 @@ def plot_contour(P, m2sinI, t0, chi2):
    '''
 
    plt.close()
-   plt.scatter(sec_to_day(P), m2sinI/M_Jup, alpha=0.2, lw=0.2, s=2)
+   plt.scatter(sec_to_day(P), m2sinI/M_Jup, alpha=0.5, lw=0.5, s=2)
    plt.xlabel('Period (d)')
    plt.ylabel('$m_2 \sin i$ ($M_{\mathrm{Jup}}$)')
    plt.savefig('plot_scatter_1.pdf')
@@ -312,7 +313,7 @@ def plot_contour(P, m2sinI, t0, chi2):
    '''
 
    plt.close()
-   plt.scatter(sec_to_day(P), t0, alpha=0.2, lw=0.2, s=2)
+   plt.scatter(sec_to_day(P), t0, alpha=0.5, lw=0.5, s=2)
    plt.xlabel('Period (d)')
    plt.ylabel('$t_{\mathrm{peri}}$ (HJD)')
    plt.savefig('plot_scatter_2.pdf')
@@ -334,7 +335,7 @@ def plot_contour(P, m2sinI, t0, chi2):
    '''
 
    plt.close()
-   plt.scatter(m2sinI/M_Jup, t0, alpha=0.2, lw=0.2, s=2)
+   plt.scatter(m2sinI/M_Jup, t0, alpha=0.5, lw=0.5, s=2)
    plt.xlabel('$m_2 \sin i$ ($M_{\mathrm{Jup}}$)')
    plt.ylabel('$t_{\mathrm{peri}}$ (HJD)')
    plt.savefig('plot_scatter_3.pdf')
@@ -387,5 +388,5 @@ if __name__ == '__main__':
    steps = input('Enter number of steps: ')
    P, m2sinI, t0, chi2 = fitdata(steps)
    plot_fit(P, m2sinI, t0, chi2)
-   plot_contour(P, m2sinI, t0, chi2)
+   #plot_contour(P, m2sinI, t0, chi2)
 
