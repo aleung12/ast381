@@ -1142,7 +1142,7 @@ def get_params(arg):
 def check_swap_rates():
 
    rates = [[],[],[],[],[],[],[],[]]
-   data = open('swap_acceptance_rate_cp.dat','r')
+   data = open('swap_acceptance_rate.dat','r')
    for line in data.readlines():
       if not line.startswith('#'):
          thisline = line.split()
