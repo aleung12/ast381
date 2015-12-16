@@ -93,10 +93,10 @@ def propose_swaps(real_data,nchain,temp_ladder,last_posit):
 
 
 
-def pt_runs(maxit):
+def pt_runs(maxit,w81):
    t00 = time.time()
 
-   param_list, param_ct, nchain, swapInt, jhr, psmin, psmax, real_data, models, temp_ladder = init_all()
+   param_list, param_ct, nchain, swapInt, jhr, psmin, psmax, real_data, models, temp_ladder = init_all(w81)
 
    swap_acc_rate = open('swap_acceptance_rate.dat','w')
    swap_acc_rate.write('# iteration \t')
@@ -108,11 +108,12 @@ def pt_runs(maxit):
       t0,tl = time.time(),time.localtime()
       print('      ######  iteration %.0f of pt_runs() began at: '%(it+1) +time.strftime("%a, %d %b %Y %H:%M:%S", tl))
       
-      if (it==0): burnIn = True
-      else: burnIn = False
+      #if (it==0): burnIn = True
+      #else: burnIn = False
+      burnIn = True   # [2015-12-16] always require burn-in after swaps
 
       if it == 0: swapInt = 2e4
-      else: swapInt = 1e3
+      else: swapInt = 2e3
 
       models, sarates = pt_aux(temp_ladder,nchain,swapInt,burnIn,models,param_list,param_ct,psmin,psmax,jhr,real_data,it)
       swap_acc_rate.write(' %.0f \t'%(it))
@@ -208,14 +209,15 @@ def convert_gcal(gcd,jdw):
 
 
 
-def init_all():
+def init_all(w81):
    
    param_list = ['semimajor axis','orbital period','eccentricity','inclination','big Omega','omega','t_periastron']
    param_ct = len(param_list)
 
-   sdata   = 1       # not using 1981-11-10 event as data point
+   if w81 == False:  sdata = 1       # not using 1981-11-10 event as data point
+   elif w81 == True: sdata = 2       # do use 1981-11-10 event as data point
    nchain  = 8
-   swapInt = 1e3
+   swapInt = 2e3
    
    models = []
    for i in range(nchain):
@@ -311,7 +313,8 @@ def mcmc_fit(swapInt,model,wnum,burnIn,verbose,param_list,param_ct,psmin,psmax,j
          model = new_model
          jump_ct += 1
       
-      if (jump_ct >= 1e3) or (burnIn == False):
+      # [2015-12-16] burn-in reduced from 1e3 to 1e2 accepted jumps
+      if (jump_ct >= 1e2) or (burnIn == False):
          acc_rate[var].append(prob_acc)
          if (counter%1e2) == 0:
             for i in range(param_ct):
@@ -393,6 +396,155 @@ def mcmc_fit(swapInt,model,wnum,burnIn,verbose,param_list,param_ct,psmin,psmax,j
 
 
 
+def absolute_astrometry(d,t,smjr_ax,P,ecc,inclin,bOmega,omega,tP,verbose,output):
+
+   ### mean motion (n)
+   n = 2 *pi() /P
+   
+   ### mean anomaly (M)
+   M = n *(t-tP)                 ### (t-tP) gives time since periapsis
+
+   '''
+   ### solve Kepler's equation
+   ###    M = E -ecc *sin(E)
+   
+   ### use Newton-Raphson method
+   ###    f(E) = E -ecc*sin(E) -M(t)
+   ### E_(n+1) = E_n - f(E_n) /f'(E_n)
+   ###         = E_n - (E_n -ecc*sin(E_n) -M(t)) /(1 -ecc*cos(E_n))
+   '''   
+
+   ### eccentric anomaly (E)
+   if ecc <= 0.8: E = M
+   else: E = pi()
+   counter = 0
+   tloop = time.time()
+   while np.abs(g(E,M,ecc)) > 1e-5:
+      E = E - (E -ecc*sin(E) -M) /(1 -ecc*cos(E))
+      counter += 1
+      if verbose and counter%10 == 0: print(counter,round(time.time()-tloop,5))
+
+   ### true anomaly (f)
+   f = 2 * arctan(sqrt((1+ecc)/(1-ecc))*tan(E/2.))
+
+   ### true separation
+   r = smjr_ax *(1 -ecc**2) /(1 +ecc *cos(f))
+
+   ### absolute astrometry
+   X = r *(cos(bOmega)*cos(omega+f)-sin(bOmega)*sin(omega+f)*cos(inclin))
+   Y = r *(sin(bOmega)*cos(omega+f)+cos(bOmega)*sin(omega+f)*cos(inclin))
+   
+   ### Kepler's third law
+   M_sys = 4*pi()**2/G *smjr_ax**3 /P**2
+   
+   ### switch to center-of-mass frame
+   CM_X = X /M_sys   #*m2/(m1 +m2)
+   CM_Y = Y /M_sys   #*m2/(m1 +m2)
+   
+   rawarctan = arctan((Y-CM_Y)/(X-CM_X))
+   if (Y-CM_Y)>=0 and (X-CM_X)>=0: PA_m2 = rawarctan  # quadrant I
+   elif (X-CM_X)<0: PA_m2 = rawarctan +pi()           # quadrants II and III
+   else: PA_m2 = rawarctan +2*pi()                    # quadrant IV
+   
+   proj_sep = sqrt((X-CM_X)**2 +(Y-CM_Y)**2)                   # physical separation in cm
+   proj_sep = rad_to_deg(proj_sep/pc_to_cm(d)) *3600 *1000     # angular separation in mas
+
+   PA = rad_to_deg(PA_m2)
+   if PA >= 360: PA -= 360
+
+   ### calculate RVs with respect to stationary barycenter (CM)
+   RV_m1 = m2 /M_sys *(sec_to_day(n) *smjr_ax *sin(inclin)) /sqrt(1 -ecc**2) *(cos(omega+f) +ecc*cos(omega))
+   RV_m2 = -RV_m1 *(M_sys-m2) /m2
+   #RV_m1 = m2 /(m1 +m2) *(sec_to_day(n) *smjr_ax *sin(inclin)) /sqrt(1 -ecc**2) *(cos(omega+f) +ecc*cos(omega))
+   #RV_m2 = -RV_m1 *m1 /m2
+
+   if output == 'sep,PA': return proj_sep, PA
+   elif output == 'RA,dec': return (rad_to_deg((Y-CM_Y)/pc_to_cm(d))*3600*1000),(rad_to_deg((X-CM_X)/pc_to_cm(d))*3600*1000),(RV_m1*1e-5),(RV_m2*1e-5)
+   elif output == 'RV': return (RV_m2*1e-5)
+
+
+def get_data(arg):
+   
+   JD, sep, sepunc, PA, PAunc = [],[],[],[],[]
+
+   if arg == 1: data = open('data_bPicb.dat','r')
+   elif arg == 2: data = open('data_bPicb_w81.dat','r')
+   for line in data.readlines():
+      if not line.startswith('#'):
+         thisline = line.split()
+
+         gcal = str(thisline[0])
+         JD.append(convert_gcal(gcal,'jdd'))
+
+         sep.append(float(thisline[1]))
+         sepunc.append(float(thisline[2]))
+         PA.append(float(thisline[3]))
+         PAunc.append(float(thisline[4]))
+
+   data.close()
+   return JD, sep, sepunc, PA, PAunc
+
+
+
+### function to be evaluated in Newton-Raphson method
+def g(E,M,ecc): return E -ecc*sin(E) -M
+
+
+### define constants in cgs units
+h     = const.h *1e7           ### erg s
+c     = const.c *1e2           ### cm s-1
+k     = const.k *1e7           ### erg K-1
+G     = const.G *1e3           ### cm3 g-1 s-2
+AU    = 1.496e13               ### cm
+sigma = const.sigma *1e3       ### g s-3 K-4
+R_Sun   = 6.955e10             ### cm
+M_Sun   = 1.989e33             ### grams
+M_Jup   = 1.898e30             ### grams
+M_Earth = 5.972e27             ### grams
+
+
+### helper functions
+def pi(): return np.pi
+def ln(x): return np.log(x)
+def exp(x): return np.exp(x)
+def sqrt(x): return np.sqrt(x)
+def sin(x): return np.sin(x)
+def cos(x): return np.cos(x)
+def tan(x): return np.tan(x)
+def arcsin(x): return np.arcsin(x)
+def arccos(x): return np.arccos(x)
+def arctan(x): return np.arctan(x)
+def arctan2(x,y): return np.arctan2(x,y)
+def arccos(x): return np.arccos(x)
+def log10(x): return np.log10(x)
+def ln(x): return np.log(x)
+
+
+### unit conversions
+def rad_to_deg(rad): return rad *180. /pi()
+def deg_to_rad(deg): return deg /180. *pi()
+def sec_to_yrs(sec): return sec /60. /60 /24 /365.256362
+def yrs_to_sec(yrs): return yrs *60. *60 *24 *365.256362
+def day_to_yrs(day): return day /365.256362
+def yrs_to_day(yrs): return yrs *365.256362
+def sec_to_day(sec): return sec /60. /60 /24
+def day_to_sec(day): return day *24. *60 *60
+def hrs_to_sec(hrs): return hrs *60. *60.
+def cm_to_AU(cm): return cm *6.68458712e-14
+def AU_to_cm(AU): return AU *1.496e13
+def cm_to_Rsun(cm): return cm /R_Sun
+def Rsun_to_cm(Rsun): return Rsun *R_Sun
+def pc_to_cm(pc): return pc *3.086e18
+def g_to_Mearth(g): return g /5.972e27
+
+
+### beta Pic system
+d = 19.3          # pc (Hipparcos; Crifo et al. 1997)
+m1 = 1.61 *M_Sun  # grams
+m2 = 7.0 *M_Jup   # grams
+
+
+
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator,ScalarFormatter,FormatStrFormatter,NullFormatter
 from pylab import rcParams
@@ -402,14 +554,14 @@ from matplotlib import font_manager
 from matplotlib import rc
 
 
-def hist_post_at_temp(it,logT):
-   mchain = get_mcsample(1,it+1,logT,'hist')
-   plot_posterior(mchain,it+1,logT,True)
+def hist_post_at_temp(it,T):
+   mchain = get_mcsample(1,it+1,T,'hist')
+   plot_posterior(mchain,it+1,T,True)
    mchain = []
    gc.collect()
 
 
-def plot_posterior(mchain,it,logT,cu):
+def plot_posterior(mchain,it,T,cu):
    
    fontproperties = {'family':'serif','serif':['cmr'],'weight':'normal','size':11}
    rc('text', usetex=True)
@@ -478,11 +630,10 @@ def plot_posterior(mchain,it,logT,cu):
    fig.tight_layout()
 
    if cu:
-      plt.savefig('hist_all_logT%.1f'%(logT)+'_it%03d'%(it)+'.pdf')
+      plt.savefig('hist_all_logT%.1f'%(log10(T))+'_it%03d'%(it)+'.pdf')
       #plt.savefig('hist_all.pdf')
    else:
-      plt.savefig('hist_logT%.1f'%(logT)
-      +'_it%03d'%(it)+'.pdf')
+      plt.savefig('hist_logT%.1f'%(log10(T))+'_it%03d'%(it)+'.pdf')
       #plt.savefig('hist.pdf')
 
    plt.close()
@@ -716,157 +867,8 @@ def bugtest():
   
 
 
-def absolute_astrometry(d,t,smjr_ax,P,ecc,inclin,bOmega,omega,tP,verbose,output):
-
-   ### mean motion (n)
-   n = 2 *pi() /P
-   
-   ### mean anomaly (M)
-   M = n *(t-tP)                 ### (t-tP) gives time since periapsis
-
-   '''
-   ### solve Kepler's equation
-   ###    M = E -ecc *sin(E)
-   
-   ### use Newton-Raphson method
-   ###    f(E) = E -ecc*sin(E) -M(t)
-   ### E_(n+1) = E_n - f(E_n) /f'(E_n)
-   ###         = E_n - (E_n -ecc*sin(E_n) -M(t)) /(1 -ecc*cos(E_n))
-   '''   
-
-   ### eccentric anomaly (E)
-   if ecc <= 0.8: E = M
-   else: E = pi()
-   counter = 0
-   tloop = time.time()
-   while np.abs(g(E,M,ecc)) > 1e-5:
-      E = E - (E -ecc*sin(E) -M) /(1 -ecc*cos(E))
-      counter += 1
-      if verbose and counter%10 == 0: print(counter,round(time.time()-tloop,5))
-
-   ### true anomaly (f)
-   f = 2 * arctan(sqrt((1+ecc)/(1-ecc))*tan(E/2.))
-
-   ### true separation
-   r = smjr_ax *(1 -ecc**2) /(1 +ecc *cos(f))
-
-   ### absolute astrometry
-   X = r *(cos(bOmega)*cos(omega+f)-sin(bOmega)*sin(omega+f)*cos(inclin))
-   Y = r *(sin(bOmega)*cos(omega+f)+cos(bOmega)*sin(omega+f)*cos(inclin))
-   
-   ### Kepler's third law
-   M_sys = 4*pi()**2/G *smjr_ax**3 /P**2
-   
-   ### switch to center-of-mass frame
-   CM_X = X /M_sys   #*m2/(m1 +m2)
-   CM_Y = Y /M_sys   #*m2/(m1 +m2)
-   
-   rawarctan = arctan((Y-CM_Y)/(X-CM_X))
-   if (Y-CM_Y)>=0 and (X-CM_X)>=0: PA_m2 = rawarctan  # quadrant I
-   elif (X-CM_X)<0: PA_m2 = rawarctan +pi()           # quadrants II and III
-   else: PA_m2 = rawarctan +2*pi()                    # quadrant IV
-   
-   proj_sep = sqrt((X-CM_X)**2 +(Y-CM_Y)**2)                   # physical separation in cm
-   proj_sep = rad_to_deg(proj_sep/pc_to_cm(d)) *3600 *1000     # angular separation in mas
-
-   PA = rad_to_deg(PA_m2)
-   if PA >= 360: PA -= 360
-
-	### calculate RVs with respect to stationary barycenter (CM)
-   RV_m1 = m2 /M_sys *(sec_to_day(n) *smjr_ax *sin(inclin)) /sqrt(1 -ecc**2) *(cos(omega+f) +ecc*cos(omega))
-   RV_m2 = -RV_m1 *(M_sys-m2) /m2
-   #RV_m1 = m2 /(m1 +m2) *(sec_to_day(n) *smjr_ax *sin(inclin)) /sqrt(1 -ecc**2) *(cos(omega+f) +ecc*cos(omega))
-   #RV_m2 = -RV_m1 *m1 /m2
-
-   if output == 'sep,PA': return proj_sep, PA
-   elif output == 'RA,dec': return (rad_to_deg((Y-CM_Y)/pc_to_cm(d))*3600*1000),(rad_to_deg((X-CM_X)/pc_to_cm(d))*3600*1000),(RV_m1*1e-5),(RV_m2*1e-5)
-   elif output == 'RV': return (RV_m2*1e-5)
-
-
-def get_data(arg):
-   
-   JD, sep, sepunc, PA, PAunc = [],[],[],[],[]
-
-   if arg == 1: data = open('data_bPicb.dat','r')
-   elif arg == 2: data = open('data_bPicb_w81.dat','r')
-   for line in data.readlines():
-      if not line.startswith('#'):
-         thisline = line.split()
-
-         gcal = str(thisline[0])
-         JD.append(convert_gcal(gcal,'jdd'))
-
-         sep.append(float(thisline[1]))
-         sepunc.append(float(thisline[2]))
-         PA.append(float(thisline[3]))
-         PAunc.append(float(thisline[4]))
-
-   data.close()
-   return JD, sep, sepunc, PA, PAunc
-
-
-
-### function to be evaluated in Newton-Raphson method
-def g(E,M,ecc): return E -ecc*sin(E) -M
-
-
-### define constants in cgs units
-h     = const.h *1e7           ### erg s
-c     = const.c *1e2           ### cm s-1
-k     = const.k *1e7           ### erg K-1
-G     = const.G *1e3           ### cm3 g-1 s-2
-AU    = 1.496e13               ### cm
-sigma = const.sigma *1e3       ### g s-3 K-4
-R_Sun   = 6.955e10             ### cm
-M_Sun   = 1.989e33             ### grams
-M_Jup   = 1.898e30             ### grams
-M_Earth = 5.972e27             ### grams
-
-
-### helper functions
-def pi(): return np.pi
-def ln(x): return np.log(x)
-def exp(x): return np.exp(x)
-def sqrt(x): return np.sqrt(x)
-def sin(x): return np.sin(x)
-def cos(x): return np.cos(x)
-def tan(x): return np.tan(x)
-def arcsin(x): return np.arcsin(x)
-def arccos(x): return np.arccos(x)
-def arctan(x): return np.arctan(x)
-def arctan2(x,y): return np.arctan2(x,y)
-def arccos(x): return np.arccos(x)
-def log10(x): return np.log10(x)
-def ln(x): return np.log(x)
-
-
-### unit conversions
-def rad_to_deg(rad): return rad *180. /pi()
-def deg_to_rad(deg): return deg /180. *pi()
-def sec_to_yrs(sec): return sec /60. /60 /24 /365.256362
-def yrs_to_sec(yrs): return yrs *60. *60 *24 *365.256362
-def day_to_yrs(day): return day /365.256362
-def yrs_to_day(yrs): return yrs *365.256362
-def sec_to_day(sec): return sec /60. /60 /24
-def day_to_sec(day): return day *24. *60 *60
-def hrs_to_sec(hrs): return hrs *60. *60.
-def cm_to_AU(cm): return cm *6.68458712e-14
-def AU_to_cm(AU): return AU *1.496e13
-def cm_to_Rsun(cm): return cm /R_Sun
-def Rsun_to_cm(Rsun): return Rsun *R_Sun
-def pc_to_cm(pc): return pc *3.086e18
-def g_to_Mearth(g): return g /5.972e27
-
-
-### beta Pic system
-d = 19.3          # pc (Hipparcos; Crifo et al. 1997)
-m1 = 1.61 *M_Sun  # grams
-m2 = 7.0 *M_Jup   # grams
-
-
-
-def debug():
-   param_list, param_ct, nchain, swapInt, jhr, psmin, psmax, real_data, models, temp_ladder, Tmin, Tmax = init_all()
+def debug(w81):
+   param_list, param_ct, nchain, swapInt, jhr, psmin, psmax, real_data, models, temp_ladder, Tmin, Tmax = init_all(w81)
    burnIn = True
    verbose = False
    model = initial_guesses('')
@@ -1156,13 +1158,15 @@ def check_swap_rates():
 if __name__ == '__main__':
 
    a = input('Enter \'hist\' or \'orb\' or \'stat\' or \'run\': ')
-   
+   temp_ladder = (10**(np.arange(0,5,0.714))).tolist()
+
    if a == 'run':
-      maxit = 1999
-      pt_runs(maxit+1)
+      w81 = input('Fit 1981-11-10 event as data point? (Enter boolean) ')
+      maxit = 999
+      pt_runs(maxit+1,w81)
       plot_mcorbits(1,maxit,250)
       plot_proj_orbits(maxit,250)
-      for logT in [0,1,2,3,4,5,6,7]: hist_post_at_temp(maxit,logT)
+      for T in temp_ladder: hist_post_at_temp(maxit,T)
       prob_81nov(maxit)
       upcoming_transit(maxit)
 
@@ -1170,8 +1174,8 @@ if __name__ == '__main__':
       lit = input('Enter last iteration: ')
       
       if a == 'hist':
-         for logT in [0,1,2,3,4,5,6,7]:
-            hist_post_at_temp(lit-1,logT)
+         for T in temp_ladder:
+            hist_post_at_temp(lit-1,T)
 
       elif a == 'orb':
          plot_mcorbits(1,lit-1,250)
