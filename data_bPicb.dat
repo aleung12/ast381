@@ -4,10 +4,19 @@
 #   UT date         Separation (mas)        PA (deg)           Reference
 #                  data   uncertainty    data   uncertainty
 #
-   2003-11-10      411.        8.        31.7       1.3       Lagrange+09 via Currie+11
+   2003-11-10      411.        8.        31.8       1.3       Lagrange+09
+   2003-11-10      411.        8.        31.5       1.3       Lagrange+09
+   2003-11-13      401.        8.        32.1       1.4       Lagrange+09
+#
+   2010-03-20      346.        9.       210.4       0.8       Bonnefoy+11
+   2010-03-20      343.       12.       209.3       0.3       Bonnefoy+11
+   2010-04-10      346.       12.       207.8       2.0       Bonnefoy+11
+   2010-04-10      355.        2.       208.6       1.3       Bonnefoy+11
+#
+#  2003-11-10      411.        8.        31.7       1.3       Lagrange+09 via Currie+11
    2008-11-11      210.       27.       211.49      1.9       Currie+11
    2009-12-29      326.       13.       210.64      1.2       Currie+11
-   2010-03-20      345.       12.       209.8       0.8       Bonnefoy+11 via Currie+11
+#  2010-03-20      345.       12.       209.8       0.8       Bonnefoy+11 via Currie+11
 #
    2003-11-10      413.       22.        34.42      3.52      Chauvin+12
    2009-10-25      299.       14.       210.74      2.89      Chauvin+12
@@ -36,11 +45,15 @@
 #
    2012-11-01      456.       11.       211.89      2.32      Bonnefoy+13
 #
+   2013-12-10      430.       10.       211.6       1.3       Bonnefoy+14
+#
+   2013-11-18      434.        6.       211.8       0.5       Macintosh+14
+#
    2013-11-16      430.3       3.2      212.31      0.44      Millar-Blanchaer+15
    2013-11-16      426.0       3.0      212.84      0.42      Millar-Blanchaer+15
-   2013-11-18      428.1       2.7      212.22      0.39      Macintosh+14 via Millar-Blanchaer+15
+#  2013-11-18      428.1       2.7      212.22      0.39      Macintosh+14 via Millar-Blanchaer+15
    2013-12-10      418.8       3.6      212.64      0.53      Millar-Blanchaer+15
-   2013-12-10      419.1       6.2      212.16      0.81      Bonnefoy+14 via Millar-Blanchaer+15
+#  2013-12-10      419.1       6.2      212.16      0.81      Bonnefoy+14 via Millar-Blanchaer+15
    2013-12-11      419.2       5.1      212.26      0.72      Millar-Blanchaer+15
    2013-12-12      426.6       7.0      211.80      0.68      Millar-Blanchaer+15
    2014-03-23      412.5       2.7      212.08      0.41      Millar-Blanchaer+15
