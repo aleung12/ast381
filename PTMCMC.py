@@ -1051,7 +1051,7 @@ def plot_proj_orbits(endit,howmany):
       error_bar.append(err_bar)
 
    ax[0].errorbar(RA_data,dec_data,xerr=error_bar,yerr=error_bar,fmt='none',alpha=0.6,lw=0.25,ecolor='red',capsize=0.6,capthick=0.2)
-   ax[0].scatter(RA_data,dec_data,marker='o',edgecolor='red',c='red',lw=0.8,s=0.8,alpha=0.6)
+   ax[0].scatter(RA_data,dec_data,marker='o',edgecolor='red',c='red',lw=0.8,s=1.2,alpha=0.6)
    
    oax.set_xlabel(r'$\Delta \alpha$ \ (mas)',fontsize='x-large', fontweight='bold')
    oax.set_ylabel(r'$\Delta \delta$ \ (mas)',fontsize='x-large', fontweight='bold')
@@ -1164,8 +1164,8 @@ if __name__ == '__main__':
       w81 = input('Fit 1981-11-10 event as data point? (Enter boolean) ')
       maxit = 999
       pt_runs(maxit+1,w81)
-      plot_mcorbits(1,maxit,200)
-      plot_proj_orbits(maxit,200)
+      plot_mcorbits(1,maxit,100)
+      plot_proj_orbits(maxit,100)
       for T in temp_ladder: hist_post_at_temp(maxit,T)
       prob_81nov(maxit)
       upcoming_transit(maxit)
@@ -1178,9 +1178,8 @@ if __name__ == '__main__':
             hist_post_at_temp(lit-1,T)
 
       elif a == 'orb':
-         plot_mcorbits(1,lit-1,200)
+         plot_mcorbits(1,lit-1,100)
 
       elif a == 'stat':
          get_mcsample(1,lit-1,1,a)
 
-   
