@@ -1006,7 +1006,7 @@ def plot_proj_orbits(endit,howmany):
    ang_size = 0.835     # angular size of beta Pic in mas (Kervella et al. 2004)
    betaPic = plt.Circle((0,0),0.5*ang_size,color='orange',alpha=0.6,lw=0)
 
-   smjr_ax,P,ecc,inclin,bOmega,omega,tP = AU_to_cm(8.77),yrs_to_day(20.55),0.044,deg_to_rad(88.91),deg_to_rad(-148.31),deg_to_rad(-12.94),julian_day(2011.8)
+   smjr_ax,P,ecc,inclin,bOmega,omega,tP = AU_to_cm(8.85),yrs_to_day(21.27),0.057,deg_to_rad(88.24),deg_to_rad(-148.69),deg_to_rad(-15.5),julian_day(2011.4)
    dates = np.arange(tP,tP+P,P/1000.)
    RA_off, dec_off = [],[]
    for j in range(len(dates)):
@@ -1016,7 +1016,7 @@ def plot_proj_orbits(endit,howmany):
    for k in range(len(ax)):
       ax[k].plot(RA_off,dec_off,color='green',marker='',ls='-',ms=1,lw=0.6,alpha=0.85,label='Most probable')
 
-   smjr_ax,P,ecc,inclin,bOmega,omega,tP = AU_to_cm(10.05),yrs_to_day(25.94),0.188,deg_to_rad(89.06),deg_to_rad(-148.31),deg_to_rad(-17.6),julian_day(2011.4)
+   smjr_ax,P,ecc,inclin,bOmega,omega,tP = AU_to_cm(10.07),yrs_to_day(26.36),0.175,deg_to_rad(88.48),deg_to_rad(-148.65),deg_to_rad(-29.5),julian_day(2010.6)
    dates = np.arange(tP,tP+P,P/1000.)
    RA_off, dec_off = [],[]
    for j in range(len(dates)):
@@ -1051,7 +1051,7 @@ def plot_proj_orbits(endit,howmany):
       error_bar.append(err_bar)
 
    ax[0].errorbar(RA_data,dec_data,xerr=error_bar,yerr=error_bar,fmt='none',alpha=0.6,lw=0.25,ecolor='red',capsize=0.6,capthick=0.2)
-   ax[0].scatter(RA_data,dec_data,marker='o',edgecolor='red',c='red',lw=0.8,s=1.2,alpha=0.6)
+   ax[0].scatter(RA_data,dec_data,marker='o',edgecolor='red',c='red',lw=0.8,s=0.8,alpha=0.6)
    
    oax.set_xlabel(r'$\Delta \alpha$ \ (mas)',fontsize='x-large', fontweight='bold')
    oax.set_ylabel(r'$\Delta \delta$ \ (mas)',fontsize='x-large', fontweight='bold')
