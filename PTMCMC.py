@@ -1179,7 +1179,7 @@ if __name__ == '__main__':
 
       elif a == 'orb':
          plot_mcorbits(1,lit-1,100)
+         plot_proj_orbits(lit,100)
 
       elif a == 'stat':
          get_mcsample(1,lit-1,1,a)
-
