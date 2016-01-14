@@ -113,7 +113,7 @@ def pt_runs(maxit,w81):
       burnIn = True   # [2015-12-16] always require burn-in after swaps
 
       if it == 0: swapInt = 2e4
-      else: swapInt = 2e3
+      else: swapInt = 1e4  #2e3
 
       models, sarates = pt_aux(temp_ladder,nchain,swapInt,burnIn,models,param_list,param_ct,psmin,psmax,jhr,real_data,it)
       swap_acc_rate.write(' %.0f \t'%(it))
@@ -124,8 +124,8 @@ def pt_runs(maxit,w81):
       print('      ######  iteration %.0f of pt_runs() finished at: '%(it+1) +time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime()))
 
       if (it%100)==0:
-         plot_mcorbits(1,it+1,250)
-         plot_proj_orbits(it+1,250)
+         plot_mcorbits(1,it+1,100)
+         plot_proj_orbits(it+1,100)
          
          T = 1
          mchain = get_mcsample(1,it+1,T,'hist')
@@ -217,7 +217,7 @@ def init_all(w81):
    if w81 == False:  sdata = 1       # not using 1981-11-10 event as data point
    elif w81 == True: sdata = 2       # do use 1981-11-10 event as data point
    nchain  = 8
-   swapInt = 2e3
+   swapInt = 1e4
    
    models = []
    for i in range(nchain):
@@ -229,7 +229,7 @@ def init_all(w81):
    #logTmin,logTmax = 0,4   ### v3
    #temp_ladder = (10**(np.arange(logTmin,logTmax,0.5))).tolist()
    logTmin,logTmax = 0,5    ### v4
-   temp_ladder = (10**(np.arange(logTmin,logTmax,0.714))).tolist()
+   temp_ladder = (10**(np.arange(logTmin,logTmax,0.71428571))).tolist()
 
 
    # jump half-ranges (uniform distribution)
@@ -314,7 +314,8 @@ def mcmc_fit(swapInt,model,wnum,burnIn,verbose,param_list,param_ct,psmin,psmax,j
          jump_ct += 1
       
       # [2015-12-16] burn-in reduced from 1e3 to 1e2 accepted jumps
-      if (jump_ct >= 1e2) or (burnIn == False):
+      # [2015-12-18] burn-in reverted back to 1e3 accepted jumps, with corresponding change to 1e4 iterations between swap proposals
+      if (jump_ct >= 1e3) or (burnIn == False):
          acc_rate[var].append(prob_acc)
          if (counter%1e2) == 0:
             for i in range(param_ct):
@@ -821,62 +822,9 @@ def plot_all(mparam,ver):
       for label in ld.get_lines(): label.set_linewidth(1)
       
    fig.tight_layout()
-   plt.savefig('many_orbit_it'+str(ver)+'.pdf')
+   plt.savefig('many_orbits_it'+str(ver)+'.pdf')
    plt.savefig('many_orbits.pdf')
    plt.close()
-
-
-
-
-def bugtest():
-
-   data = [ 1995.20362765,  1995.21261636,  1995.22160507,  1995.23059377,  1995.23958248, \
-  1995.24857118,  1995.25755989,  1995.2665486,   1995.2755373,   1995.28452601, \
-  1995.29351472,  1995.30250342, 1995.31149213,  1995.32048084,  1995.32946954, \
-  1995.33845825,  1995.34744695,  1995.35643566,  1995.36542437,  1995.37441307,]
-
-   plt.close()
-   fig = plt.figure(1,figsize=(8.0,9.0))
-   ax  = [fig.add_subplot(421),fig.add_subplot(422),fig.add_subplot(423),fig.add_subplot(424),fig.add_subplot(425),fig.add_subplot(426),fig.add_subplot(427)]
-
-   plot_list = [[1,1,2],[1,1,2],[1,1,2],[1,1,2],[1,1,2],[1,1,2],data]
-   for j in range(len(ax)):
-      if j == 6: ax[j].bar(plot_list[j],bins=100,color='green',histtype='step',alpha=0.9,lw=1.2)
-   
-      if j == 0: ax[j].set_xlabel('$a$ \ (AU)')
-      elif j == 1: ax[j].set_xlabel('$P$ \ (yr)')
-      elif j == 2: ax[j].set_xlabel('$e$')
-      elif j == 3: ax[j].set_xlabel('$i$ \ ($^{\circ}$)')
-      elif j == 4: ax[j].set_xlabel(r'$\Omega$ \ ($^{\circ}$)')
-      elif j == 5: ax[j].set_xlabel(r'$\omega$ \ ($^{\circ}$)')
-      elif j == 6: ax[j].set_xlabel('$t_{\mathrm{p}}$ \ [yr JD]')
-   
-      ax[j].spines['left'].set_linewidth(0.9)
-      ax[j].spines['right'].set_linewidth(0.9)
-      ax[j].spines['top'].set_linewidth(0.9)
-      ax[j].spines['bottom'].set_linewidth(0.9)
-
-      a = plt.hist(plot_list[j],bins=200)
-      print(float(a[1][np.argmax(a[0])]))
-      if j==6: print(a[1])
-   
-   print('')
-   fig.tight_layout()
-   plt.show()
-   plt.close()
-  
-
-
-def debug(w81):
-   param_list, param_ct, nchain, swapInt, jhr, psmin, psmax, real_data, models, temp_ladder, Tmin, Tmax = init_all(w81)
-   burnIn = True
-   verbose = False
-   model = initial_guesses('')
-   steps = swapInt
-   wnum = 0
-   T = temp_ladder[0]
-   mcmc_fit(steps,model,wnum,burnIn,verbose,param_ct,psmin,psmax,jhr,real_data,T)
-   
 
 
 
@@ -980,6 +928,7 @@ def upcoming_transit(maxit):
 
 
 
+import scipy.stats as ss
 
 def plot_proj_orbits(endit,howmany):
 
@@ -987,7 +936,7 @@ def plot_proj_orbits(endit,howmany):
    rc('text', usetex=True)
    rc('font', **fontproperties)
    plt.close()
-   fig = plt.figure(1,figsize=(7.5,3.6))
+   fig = plt.figure(1,figsize=(7.5,3.7))
    
    oax = fig.add_subplot(111)
    oax.spines['top'].set_color('none')
@@ -996,17 +945,23 @@ def plot_proj_orbits(endit,howmany):
    oax.spines['bottom'].set_color('none')
    oax.tick_params(labelcolor='none',top='off',bottom='off',left='off',right='off')
 
-   ax = [fig.add_subplot(121),fig.add_subplot(122)]
-   params = get_mcsample(1,endit,1,'plot')
-   selected = []
-   for i in range(howmany):
-      rsample = int(random.uniform(0,len(params)))
-      selected.append(params[rsample])
 
+   params = get_mcsample(1,endit,1,'hist')
+   param_ct = len(params)
+   most_probable, median = [],[]
+   for j in range(param_ct):
+      if j==3: tbins = 1200
+      elif j==4: tbins = 1600
+      else: tbins = 200
+      a = plt.hist(params[j],bins=tbins)
+      most_probable.append(float(a[1][np.argmax(a[0])]))
+      median.append(ss.scoreatpercentile(params[j],50))
+
+   ax = [fig.add_subplot(121),fig.add_subplot(122)]
    ang_size = 0.835     # angular size of beta Pic in mas (Kervella et al. 2004)
    betaPic = plt.Circle((0,0),0.5*ang_size,color='orange',alpha=0.6,lw=0)
 
-   smjr_ax,P,ecc,inclin,bOmega,omega,tP = AU_to_cm(8.85),yrs_to_day(21.27),0.057,deg_to_rad(88.24),deg_to_rad(-148.69),deg_to_rad(-15.5),julian_day(2011.4)
+   smjr_ax,P,ecc,inclin,bOmega,omega,tP = AU_to_cm(most_probable[0]),yrs_to_day(most_probable[1]),most_probable[2],deg_to_rad(most_probable[3]),deg_to_rad(most_probable[4]),deg_to_rad(most_probable[5]),julian_day(most_probable[6])
    dates = np.arange(tP,tP+P,P/1000.)
    RA_off, dec_off = [],[]
    for j in range(len(dates)):
@@ -1016,7 +971,7 @@ def plot_proj_orbits(endit,howmany):
    for k in range(len(ax)):
       ax[k].plot(RA_off,dec_off,color='green',marker='',ls='-',ms=1,lw=0.6,alpha=0.85,label='Most probable')
 
-   smjr_ax,P,ecc,inclin,bOmega,omega,tP = AU_to_cm(10.07),yrs_to_day(26.36),0.175,deg_to_rad(88.48),deg_to_rad(-148.65),deg_to_rad(-29.5),julian_day(2010.6)
+   smjr_ax,P,ecc,inclin,bOmega,omega,tP = AU_to_cm(median[0]),yrs_to_day(median[1]),median[2],deg_to_rad(median[3]),deg_to_rad(median[4]),deg_to_rad(median[5]),julian_day(median[6])
    dates = np.arange(tP,tP+P,P/1000.)
    RA_off, dec_off = [],[]
    for j in range(len(dates)):
@@ -1025,6 +980,12 @@ def plot_proj_orbits(endit,howmany):
       dec_off.append(dec)
    for k in range(len(ax)):
       ax[k].plot(RA_off,dec_off,color='magenta',marker='',ls='-',ms=1,lw=0.55,alpha=0.65,label='Median')
+
+   params = get_mcsample(1,endit,1,'plot')
+   selected = []
+   for i in range(howmany):
+      rsample = int(random.uniform(0,len(params)))
+      selected.append(params[rsample])
 
    for i in range(len(selected)):
       param = selected[i]
@@ -1051,10 +1012,10 @@ def plot_proj_orbits(endit,howmany):
       error_bar.append(err_bar)
 
    ax[0].errorbar(RA_data,dec_data,xerr=error_bar,yerr=error_bar,fmt='none',alpha=0.6,lw=0.25,ecolor='red',capsize=0.6,capthick=0.2)
-   ax[0].scatter(RA_data,dec_data,marker='o',edgecolor='red',c='red',lw=0.8,s=0.8,alpha=0.6)
+   ax[0].scatter(RA_data,dec_data,marker='o',edgecolor='red',c='red',lw=0.2,s=0.8,alpha=0.6)
    
-   oax.set_xlabel(r'$\Delta \alpha$ \ (mas)',fontsize='x-large', fontweight='bold')
-   oax.set_ylabel(r'$\Delta \delta$ \ (mas)',fontsize='x-large', fontweight='bold')
+   oax.set_xlabel(r'$\Delta \alpha$ \ (mas)',fontsize='large', fontweight='bold')
+   oax.set_ylabel(r'$\Delta \delta$ \ (mas)',fontsize='large', fontweight='bold')
    oax.xaxis.labelpad = 12
    oax.yaxis.labelpad = 16
    #ax.grid()
@@ -1064,7 +1025,7 @@ def plot_proj_orbits(endit,howmany):
    axmaj = [200,4]
    axmnr = [ 50,1]
 
-   ax[0].scatter([0],[0],marker='+',edgecolor='orange',lw=2,s=60)
+   #ax[0].scatter([0],[0],marker='+',edgecolor='orange',lw=2,s=60)
    ld = ax[0].legend(loc='upper right',shadow=False,labelspacing=0.1,borderpad=0.12)
    ld.get_frame().set_lw(0)
    ld.get_frame().set_alpha(0.0)
@@ -1158,10 +1119,11 @@ def check_swap_rates():
 if __name__ == '__main__':
 
    a = input('Enter \'hist\' or \'orb\' or \'stat\' or \'run\': ')
-   temp_ladder = (10**(np.arange(0,5,0.714))).tolist()
+   temp_ladder = (10**(np.arange(0,5,0.71428571))).tolist()
 
    if a == 'run':
       w81 = input('Fit 1981-11-10 event as data point? (Enter boolean) ')
+      t0 = time.time()
       maxit = 999
       pt_runs(maxit+1,w81)
       plot_mcorbits(1,maxit,100)
@@ -1169,6 +1131,9 @@ if __name__ == '__main__':
       for T in temp_ladder: hist_post_at_temp(maxit,T)
       prob_81nov(maxit)
       upcoming_transit(maxit)
+      check_swap_rates()
+      tt0 = time.time()-t0
+      print('time elapsed:  %.1f hours, %.1f minutes, %.1f seconds' % ((tt0/3600.),((tt0%3600)/60.),((tt0%60))))
 
    else:
       lit = input('Enter last iteration: ')
@@ -1183,3 +1148,4 @@ if __name__ == '__main__':
 
       elif a == 'stat':
          get_mcsample(1,lit-1,1,a)
+
